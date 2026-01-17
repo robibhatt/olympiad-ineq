@@ -1,0 +1,7 @@
+defaults:
+  - data_gen: small
+  - _self_
+
+wandb:
+  project: olympiad-ineq
+  mode: offline  # default to offline for testing
