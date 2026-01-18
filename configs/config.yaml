@@ -10,7 +10,7 @@ vllm:
   model: Qwen/Qwen2.5-Math-72B-Instruct
   tensor_parallel_size: 4
   dtype: bfloat16
-  max_model_len: 8192
+  max_model_len: 4096
   sampling:
     temperature: 0.75
     top_p: 0.95
