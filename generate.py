@@ -6,7 +6,7 @@ import hydra
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, OmegaConf
 
-from src.data_gen import Orchestrator, TemplatedPromptSource, VLLMClient
+from src.data_gen import Orchestrator, TemplatedPromptSource, VLLMClient, warn_on_config_issues
 
 
 @hydra.main(version_base=None, config_path="configs", config_name="config")
@@ -19,10 +19,14 @@ def main(cfg: DictConfig) -> None:
     output_dir = Path(hydra_cfg.runtime.output_dir)
     output_path = output_dir / cfg.output.path
 
+    # Validate vLLM config before proceeding
+    warn_on_config_issues(OmegaConf.to_container(cfg.vllm))
+
     # Print pipeline start info
     print("=" * 60)
     print("Starting data generation pipeline")
     print("=" * 60)
+    print(f"GPU type: {cfg.vllm.gpu_type}")
     print(f"Model: {cfg.vllm.model}")
     print(f"Prompts: {cfg.prompt_plan.n}")
     print(f"Output: {output_path}")

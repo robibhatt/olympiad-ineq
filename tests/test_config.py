@@ -42,6 +42,7 @@ class TestNewConfigStructure:
         with initialize_config_dir(version_base=None, config_dir=config_dir):
             cfg = compose(config_name="config")
 
+            assert cfg.vllm.gpu_type == "a100"
             assert cfg.vllm.model == "Qwen/Qwen2.5-Math-72B-Instruct"
             assert cfg.vllm.tensor_parallel_size == 4
             assert cfg.vllm.dtype == "bfloat16"
@@ -85,6 +86,52 @@ class TestNewConfigStructure:
             assert cfg.prompt_plan.n == 100
             assert cfg.batching.batch_size == 32
             assert cfg.vllm.sampling.temperature == 0.5
+
+
+class TestV100Config:
+    """Tests for V100 test configuration."""
+
+    def test_load_v100_config(self, config_dir):
+        """config_v100_test.yaml loads without error."""
+        with initialize_config_dir(version_base=None, config_dir=config_dir):
+            cfg = compose(config_name="config_v100_test")
+            assert cfg is not None
+
+    def test_v100_gpu_type(self, config_dir):
+        """V100 config has gpu_type set to v100."""
+        with initialize_config_dir(version_base=None, config_dir=config_dir):
+            cfg = compose(config_name="config_v100_test")
+            assert cfg.vllm.gpu_type == "v100"
+
+    def test_v100_uses_float16(self, config_dir):
+        """V100 config uses float16 dtype (not bfloat16)."""
+        with initialize_config_dir(version_base=None, config_dir=config_dir):
+            cfg = compose(config_name="config_v100_test")
+            assert cfg.vllm.dtype == "float16"
+
+    def test_v100_smaller_model(self, config_dir):
+        """V100 config uses smaller 1.5B model."""
+        with initialize_config_dir(version_base=None, config_dir=config_dir):
+            cfg = compose(config_name="config_v100_test")
+            assert "1.5B" in cfg.vllm.model
+
+    def test_v100_tensor_parallel_size(self, config_dir):
+        """V100 config has tensor_parallel_size=2 for 2 GPUs."""
+        with initialize_config_dir(version_base=None, config_dir=config_dir):
+            cfg = compose(config_name="config_v100_test")
+            assert cfg.vllm.tensor_parallel_size == 2
+
+    def test_v100_reduced_n(self, config_dir):
+        """V100 config has reduced n for testing."""
+        with initialize_config_dir(version_base=None, config_dir=config_dir):
+            cfg = compose(config_name="config_v100_test")
+            assert cfg.prompt_plan.n == 50
+
+    def test_v100_smaller_batch_size(self, config_dir):
+        """V100 config has smaller batch size."""
+        with initialize_config_dir(version_base=None, config_dir=config_dir):
+            cfg = compose(config_name="config_v100_test")
+            assert cfg.batching.batch_size == 8
 
 
 def test_hydra_saves_config(tmp_path, config_dir):

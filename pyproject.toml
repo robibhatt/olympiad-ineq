@@ -11,6 +11,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
+    "pytest-mock>=3.0",
 ]
 
 [build-system]
@@ -20,3 +21,8 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["src*"]
+
+[tool.pytest.ini_options]
+markers = [
+    "gpu: marks tests as requiring GPU hardware (deselect with '-m \"not gpu\"')",
+]

@@ -1,16 +1,19 @@
+# V100 test configuration - smaller model for testing on 2x V100 GPUs
+# V100 constraints: no bfloat16 support, 32GB VRAM each (64GB total)
+
 output:
   path: generated.jsonl
   resume: true
 
 batching:
-  batch_size: 16
+  batch_size: 8
 
 vllm:
-  gpu_type: a100  # v100, a100, etc. - used for config validation
-  model: Qwen/Qwen2.5-Math-72B-Instruct
-  tensor_parallel_size: 4
-  dtype: bfloat16
-  max_model_len: 8192
+  gpu_type: v100
+  model: Qwen/Qwen2.5-Math-1.5B-Instruct
+  tensor_parallel_size: 2
+  dtype: float16  # V100 does not support bfloat16
+  max_model_len: 4096
   sampling:
     temperature: 0.75
     top_p: 0.95
@@ -64,8 +67,8 @@ prompt_plan:
     - The primary technique must clearly drive the argument.
     - Avoid cosmetic or name-only use of techniques.
 
-  # Total number of problems drawn from this distribution
-  n: 2000
+  # Reduced for testing
+  n: 50
 
   diversity:
     primary_technique:

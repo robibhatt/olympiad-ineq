@@ -9,6 +9,11 @@ from src.data_gen.prompt_source import (
     PromptSource,
     TemplatedPromptSource,
 )
+from src.data_gen.validation import (
+    GPU_DTYPE_SUPPORT,
+    validate_vllm_config,
+    warn_on_config_issues,
+)
 
 __all__ = [
     "PromptItem",
@@ -21,4 +26,7 @@ __all__ = [
     "read_existing_ids",
     "append_jsonl",
     "Orchestrator",
+    "GPU_DTYPE_SUPPORT",
+    "validate_vllm_config",
+    "warn_on_config_issues",
 ]
