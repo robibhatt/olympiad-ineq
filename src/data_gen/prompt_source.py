@@ -1,5 +1,6 @@
 """Prompt source interfaces and implementations."""
 
+import random
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 
@@ -40,54 +41,111 @@ class ExplicitPromptSource(PromptSource):
             )
 
 
-class TemplatePromptSource(PromptSource):
-    """A prompt source that expands a template n times.
-
-    Args:
-        system: System message content.
-        template: User message template with {var} placeholders.
-        n: Number of PromptItems to generate.
-        id_prefix: Prefix for deterministic ID generation.
-        vars: Dict of variable substitutions for template.
-        meta: Optional metadata to attach to each item.
-    """
+class TemplatedPromptSource(PromptSource):
+    """A prompt source that generates prompts from a template with diversity sampling."""
 
     def __init__(
         self,
-        system: str,
         template: str,
+        system_prefix: str,
+        format_system: str,
+        diversity_config: dict,
         n: int,
-        id_prefix: str,
-        vars: dict | None = None,
-        meta: dict | None = None,
+        seed: int = 0,
     ):
-        self.system = system
+        """Initialize the templated prompt source.
+
+        Args:
+            template: The prompt template string.
+            system_prefix: System message prefix.
+            format_system: System message format instructions.
+            diversity_config: Dict mapping attribute names to {choice: [...], weights: [...]}.
+            n: Number of prompts to generate.
+            seed: Random seed for reproducibility.
+        """
         self.template = template
+        self.system_prefix = system_prefix
+        self.format_system = format_system
+        self.diversity_config = diversity_config
         self.n = n
-        self.id_prefix = id_prefix
-        self.vars = vars or {}
-        self.meta = meta or {}
+        self.seed = seed
+        self._rng = random.Random(seed)
+
+    def _sample_attributes(self) -> dict:
+        """Sample one set of attributes from the diversity config.
+
+        Returns:
+            Dict mapping attribute names to sampled values.
+        """
+        result = {}
+        for key, config in self.diversity_config.items():
+            choices = config["choice"]
+            weights = config.get("weights")
+            # Use random.choices for weighted sampling
+            sampled = self._rng.choices(choices, weights=weights, k=1)[0]
+            result[key] = sampled
+        return result
+
+    def _fill_template(self, attributes: dict) -> str:
+        """Fill the template with sampled attribute values.
+
+        Args:
+            attributes: Dict mapping attribute names to values.
+
+        Returns:
+            The template string with placeholders filled in.
+        """
+        # Convert None to "None" string for readable output
+        formatted_attrs = {
+            key: "None" if value is None else value
+            for key, value in attributes.items()
+        }
+        return self.template.format(**formatted_attrs)
+
+    def _compose_system_message(self) -> str:
+        """Compose the final system message from prefix and format parts.
+
+        Returns:
+            The composed system message string.
+        """
+        parts = []
+        prefix_stripped = self.system_prefix.rstrip()
+        format_stripped = self.format_system.rstrip()
+
+        if prefix_stripped:
+            parts.append(prefix_stripped)
+        if format_stripped:
+            parts.append(format_stripped)
+
+        return "\n\n".join(parts)
 
     def __iter__(self) -> Iterator[PromptItem]:
-        for k in range(self.n):
-            item_id = f"{self.id_prefix}-{k:06d}"
+        """Iterate over prompt items.
 
-            # Render template with vars
-            try:
-                user_content = self.template.format(**self.vars)
-            except KeyError as e:
-                raise ValueError(f"Missing template variable: {e}")
+        Yields:
+            PromptItem instances with filled templates and composed system messages.
+        """
+        # Reset RNG for reproducibility on re-iteration
+        self._rng = random.Random(self.seed)
+
+        # Pre-compose system message (same for all items)
+        system_message = self._compose_system_message()
+
+        for index in range(self.n):
+            attributes = self._sample_attributes()
+            user_content = self._fill_template(attributes)
 
             messages = [
-                {"role": "system", "content": self.system},
+                {"role": "system", "content": system_message},
                 {"role": "user", "content": user_content},
             ]
 
-            item_meta = {
-                "id_prefix": self.id_prefix,
-                "index": k,
-                **self.meta,
-                **self.vars,
+            meta = {
+                "index": index,
+                "seed": self.seed,
+                **attributes,
             }
 
-            yield PromptItem(id=item_id, messages=messages, meta=item_meta)
+            prompt_id = f"prompt_{self.seed}_{index:06d}"
+
+            yield PromptItem(id=prompt_id, messages=messages, meta=meta)

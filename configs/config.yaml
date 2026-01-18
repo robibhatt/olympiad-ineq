@@ -1,22 +1,114 @@
-defaults:
-  - data_gen: small
-  - prompt_source: explicit
-  - _self_
-
-stage: null  # Set to "data_gen" to run the data generation pipeline
-
-wandb:
-  project: olympiad-ineq
-  mode: offline  # default to offline for testing
-
 output:
-  path: outputs/results.jsonl  # Override with ${hydra:runtime.output_dir}/results.jsonl when running with Hydra
+  path: data/raw/generated.jsonl
   resume: true
 
 batching:
-  batch_size: 8
+  batch_size: 16
 
 vllm:
-  model: "Qwen/Qwen2.5-0.5B-Instruct"
-  temperature: 0.7
-  max_tokens: 512
+  model: Qwen/Qwen2.5-Math-72B-Instruct
+  tensor_parallel_size: 4
+  dtype: bfloat16
+  max_model_len: 8192
+  sampling:
+    temperature: 0.75
+    top_p: 0.95
+    max_tokens: 1600
+
+# Universal outer-format contract (tight but non-restrictive)
+format:
+  system: |
+    You must output using the following outer structure and nothing else:
+
+    Q: <problem statement>
+
+    A: <solution proof>
+
+    OUTER STRUCTURE RULES:
+    - The output must start with "Q:" and contain exactly one "A:".
+    - Do not add any other section headers or labels.
+    - Do not use markdown, code fences, or bullet points.
+
+    CONTENT RULES:
+    - In Q:, clearly state the inequality and include all domain/constraint assumptions.
+    - In A:, give a complete proof.
+      * Algebraic transformations should be the backbone.
+      * Brief explanations are allowed when needed ("by AM-GM", "since ...").
+      * You may write multiple lines in A: if helpful.
+      * Keep prose minimal and math-forward.
+
+prompt_plan:
+  seed: 0
+
+  system_prefix: |
+    You are an expert olympiad inequality problem writer and solver.
+
+  # One universal template; all variation comes from sampled attributes
+  template: |
+    Generate one olympiad-style inequality problem and its full solution.
+
+    Technique requirements:
+    - Primary technique (must be essential): {primary_technique}
+    - Secondary technique (if present, must play a genuine supporting role): {secondary_technique}
+
+    Diversity constraints (these are requirements, not suggestions):
+    - Number of variables: {num_vars}
+    - Variable domain: {domain}
+    - Maximum polynomial degree (if polynomial): {max_degree}
+    - Symmetry: {symmetry}
+    - Constraint style: {constraint_style}
+
+    Additional guidance:
+    - Difficulty should be "easy olympiad": nontrivial but solvable in a short proof.
+    - The primary technique must clearly drive the argument.
+    - Avoid cosmetic or name-only use of techniques.
+
+  # Total number of problems drawn from this distribution
+  n: 2000
+
+  diversity:
+    primary_technique:
+      choice:
+        - "AM-GM"
+        - "Cauchy-Schwarz"
+        - "Weighted AM-GM"
+        - "Basic SOS (sum of squares / nonnegativity rewrite)"
+      weights: [0.30, 0.30, 0.20, 0.20]
+
+    secondary_technique:
+      # null means no secondary technique
+      choice:
+        - null
+        - "AM-GM"
+        - "Cauchy-Schwarz"
+        - "Weighted AM-GM"
+      weights: [0.55, 0.15, 0.15, 0.15]
+
+    num_vars:
+      choice: [2, 3, 4]
+      weights: [0.15, 0.65, 0.20]
+
+    domain:
+      choice:
+        - "positive reals"
+        - "nonnegative reals"
+      weights: [0.75, 0.25]
+
+    max_degree:
+      choice: [1, 2, 3, 4]
+      weights: [0.10, 0.55, 0.25, 0.10]
+
+    symmetry:
+      choice:
+        - "symmetric"
+        - "cyclic"
+        - "not necessarily symmetric"
+      weights: [0.50, 0.25, 0.25]
+
+    constraint_style:
+      choice:
+        - "no extra constraints (just domain assumptions)"
+        - "normalized sum constraint (e.g., a+b+c=1)"
+        - "product constraint (e.g., abc=1)"
+        - "ordering constraint (e.g., a>=b>=c>0)"
+      weights: [0.40, 0.30, 0.20, 0.10]

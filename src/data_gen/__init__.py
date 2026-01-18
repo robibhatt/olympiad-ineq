@@ -7,14 +7,14 @@ from src.data_gen.orchestrator import Orchestrator
 from src.data_gen.prompt_source import (
     ExplicitPromptSource,
     PromptSource,
-    TemplatePromptSource,
+    TemplatedPromptSource,
 )
 
 __all__ = [
     "PromptItem",
     "PromptSource",
     "ExplicitPromptSource",
-    "TemplatePromptSource",
+    "TemplatedPromptSource",
     "LLMClient",
     "FakeLLMClient",
     "VLLMClient",

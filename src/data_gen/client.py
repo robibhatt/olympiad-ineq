@@ -53,6 +53,7 @@ class VLLMClient(LLMClient):
         model: str,
         temperature: float = 0.7,
         max_tokens: int = 512,
+        top_p: float = 1.0,
         **kwargs,
     ):
         """Initialize the client (does not import vLLM yet).
@@ -61,12 +62,15 @@ class VLLMClient(LLMClient):
             model: HuggingFace model name or path.
             temperature: Sampling temperature.
             max_tokens: Maximum tokens to generate.
-            **kwargs: Additional arguments passed to vLLM.
+            top_p: Top-p (nucleus) sampling parameter.
+            **kwargs: Additional engine arguments passed to vLLM LLM constructor
+                (e.g., tensor_parallel_size, dtype, max_model_len).
         """
         self.model = model
         self.temperature = temperature
         self.max_tokens = max_tokens
-        self.kwargs = kwargs
+        self.top_p = top_p
+        self.engine_kwargs = kwargs
         self._llm = None
         self._sampling_params = None
 
@@ -75,10 +79,11 @@ class VLLMClient(LLMClient):
         if self._llm is None:
             from vllm import LLM, SamplingParams
 
-            self._llm = LLM(model=self.model, **self.kwargs)
+            self._llm = LLM(model=self.model, **self.engine_kwargs)
             self._sampling_params = SamplingParams(
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
+                top_p=self.top_p,
             )
 
     def generate(self, prompts: list[PromptItem]) -> list[str]:
