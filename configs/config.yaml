@@ -1,7 +1,22 @@
 defaults:
   - data_gen: small
+  - prompt_source: explicit
   - _self_
+
+stage: null  # Set to "data_gen" to run the data generation pipeline
 
 wandb:
   project: olympiad-ineq
   mode: offline  # default to offline for testing
+
+output:
+  path: outputs/results.jsonl  # Override with ${hydra:runtime.output_dir}/results.jsonl when running with Hydra
+  resume: true
+
+batching:
+  batch_size: 8
+
+vllm:
+  model: "meta-llama/Llama-2-7b-chat-hf"
+  temperature: 0.7
+  max_tokens: 512
