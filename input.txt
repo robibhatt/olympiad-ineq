@@ -1,0 +1,77 @@
+CLAUDE CODE — ARCHITECT DIRECTIVE (Incremental Step 2)
+
+ASSUMPTION
+You have already completed Plumbing v0:
+- Hydra-integrated data_gen stage
+- PromptItem + PromptSource + LLMClient interfaces
+- ExplicitPromptSource working from YAML
+- Resume-by-id in JSONL output
+- Offline tests with FakeLLMClient/FakePromptSource
+
+GOAL (Step 2)
+Add ONE incremental capability that moves us toward “yummy generated data” without committing to any campaign/spec design:
+- Implement TemplatePromptSource (a.k.a. “template + n expansion”) driven by YAML.
+- Keep the core pipeline unchanged: YAML -> PromptItems -> batching -> LLMClient -> JSONL.
+- Maintain maximum abstraction: prompt diversity via YAML vars, not Python code.
+
+SCOPE LIMIT (DO NOT DO)
+- Do NOT implement campaign hierarchy, grids, weighted sampling, verification, parsing/validation, repair/retry, sharding, multi-job splitting.
+- Do NOT change orchestrator behavior except what’s necessary to accept PromptItems produced by TemplatePromptSource.
+- Do NOT add complex schema libraries; keep it simple.
+
+REQUIRED OUTPUT SHAPE (TemplatePromptSource)
+TemplatePromptSource reads from Hydra config:
+- system: str
+- template: str (may reference a template key, or be inline)
+- n: int
+- vars: dict (string -> scalar/string)
+- meta: dict (optional)
+- id_prefix (string) OR name (string) (required for deterministic id derivation)
+
+It produces exactly n PromptItems:
+- ids are deterministic and reproducible:
+  id = f"{id_prefix}-{k:06d}" OR a stable hash of (id_prefix, k, schema_version)
+- messages:
+  - system message from config
+  - user message = rendered template with vars
+- meta attached to each item:
+  include spec/name/id_prefix + index k + provided meta/vars (whatever is simplest, but consistent)
+
+HYDRA INTEGRATION
+- Add a new config group option under prompt_source, e.g.:
+  prompt_source: template
+- Provide a minimal example config in configs/ that uses TemplatePromptSource.
+
+TEST-DRIVEN DEVELOPMENT REQUIREMENTS
+Before any implementation:
+1) Produce a concise PLAN:
+   - files/modules to add/modify
+   - tests to write (names + assertions)
+   - Hydra config additions
+2) Then write tests FIRST. Run tests to confirm failure. Only then implement.
+
+TESTS TO ADD (must be offline)
+1) test_template_prompt_source_expands_n
+   - Given a TemplatePromptSource config with n=3, ensure it yields exactly 3 PromptItems.
+2) test_template_prompt_source_deterministic_ids
+   - Instantiate TemplatePromptSource twice with same config; ensure ids are identical and ordered.
+3) test_template_prompt_source_renders_template_vars
+   - Template includes placeholders; ensure user message contains substituted values.
+4) test_orchestrator_works_with_template_source_and_resume
+   - Using FakeLLMClient and a temp output file:
+     - Run once with n=2, ensure 2 lines written.
+     - Run again with same config and resume=true, ensure no new generation calls (or 0 new lines).
+
+IMPLEMENTATION GUIDELINES
+- Minimal rendering: Python format-style replacement is fine (e.g., `{var}`), but fail fast if a placeholder is missing.
+- Keep TemplatePromptSource self-contained: it should not require changes elsewhere beyond registering it and selecting via config.
+- Keep compatibility with ExplicitPromptSource.
+- Keep imports clean; no vLLM dependency in tests.
+
+ACCEPTANCE CRITERIA
+- All new tests pass.
+- Running `python main.py stage=data_gen prompt_source=template ...` generates n examples into JSONL.
+- Rerun with resume=true does not duplicate examples and does not call the LLM client again for existing ids.
+
+FIRST THING YOU MUST DO
+Output the PLAN (steps + files + tests + config changes). Then proceed with TDD exactly as specified.

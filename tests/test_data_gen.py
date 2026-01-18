@@ -163,3 +163,126 @@ class TestEndToEnd:
         assert records[0]["id"] == "q1"
         assert records[0]["meta"] == {"tag": "test"}
         assert "Fake response" in records[0]["raw_completion"]
+
+
+class TestTemplatePromptSource:
+    """Tests for TemplatePromptSource."""
+
+    def test_template_prompt_source_expands_n(self):
+        """Given n=3, yields exactly 3 PromptItems."""
+        from src.data_gen.models import PromptItem
+        from src.data_gen.prompt_source import TemplatePromptSource
+
+        source = TemplatePromptSource(
+            system="You are a helpful assistant.",
+            template="Solve this problem: {problem}",
+            n=3,
+            id_prefix="test",
+            vars={"problem": "2+2"},
+        )
+        result = list(source)
+
+        assert len(result) == 3
+        assert all(isinstance(item, PromptItem) for item in result)
+
+    def test_template_prompt_source_deterministic_ids(self):
+        """Same config twice produces identical ordered IDs."""
+        from src.data_gen.prompt_source import TemplatePromptSource
+
+        config = {
+            "system": "You are a helper.",
+            "template": "Hello {name}",
+            "n": 5,
+            "id_prefix": "det-test",
+            "vars": {"name": "World"},
+        }
+
+        source1 = TemplatePromptSource(**config)
+        source2 = TemplatePromptSource(**config)
+
+        ids1 = [item.id for item in source1]
+        ids2 = [item.id for item in source2]
+
+        assert ids1 == ids2
+        # Check ID pattern follows {id_prefix}-{k:06d}
+        assert ids1 == ["det-test-000000", "det-test-000001", "det-test-000002", "det-test-000003", "det-test-000004"]
+
+    def test_template_prompt_source_renders_template_vars(self):
+        """Template placeholders are substituted with vars."""
+        from src.data_gen.prompt_source import TemplatePromptSource
+
+        source = TemplatePromptSource(
+            system="System message",
+            template="Hello {name}, solve {problem}",
+            n=1,
+            id_prefix="render-test",
+            vars={"name": "Alice", "problem": "2+2"},
+        )
+        result = list(source)
+
+        assert len(result) == 1
+        user_message = result[0].messages[1]["content"]
+        assert user_message == "Hello Alice, solve 2+2"
+
+    def test_orchestrator_works_with_template_source_and_resume(self, temp_jsonl):
+        """Resume=true skips existing IDs, no LLM calls for processed items."""
+        from src.data_gen.orchestrator import Orchestrator
+        from src.data_gen.prompt_source import TemplatePromptSource
+
+        source = TemplatePromptSource(
+            system="You are a math tutor.",
+            template="What is {problem}?",
+            n=2,
+            id_prefix="resume-test",
+            vars={"problem": "1+1"},
+        )
+
+        # Track generate calls
+        call_count = 0
+
+        class CountingClient:
+            def generate(self, prompts):
+                nonlocal call_count
+                call_count += len(prompts)
+                return [f"response_{p.id}" for p in prompts]
+
+        # First run - should process both items
+        orchestrator = Orchestrator(
+            client=CountingClient(),
+            batch_size=10,
+            output_path=temp_jsonl,
+            resume=False,
+        )
+        list(orchestrator.run(source))
+
+        assert call_count == 2
+
+        # Verify 2 lines in JSONL
+        with open(temp_jsonl) as f:
+            lines = f.readlines()
+        assert len(lines) == 2
+
+        # Second run with resume=True - should skip all
+        call_count = 0
+        source2 = TemplatePromptSource(
+            system="You are a math tutor.",
+            template="What is {problem}?",
+            n=2,
+            id_prefix="resume-test",
+            vars={"problem": "1+1"},
+        )
+        orchestrator2 = Orchestrator(
+            client=CountingClient(),
+            batch_size=10,
+            output_path=temp_jsonl,
+            resume=True,
+        )
+        list(orchestrator2.run(source2))
+
+        # No new calls should be made
+        assert call_count == 0
+
+        # Still 2 lines (no duplicates)
+        with open(temp_jsonl) as f:
+            lines = f.readlines()
+        assert len(lines) == 2
