@@ -210,3 +210,6 @@ __marimo__/
 .claude/
 outputs/
 wandb/
+
+# Input file
+input.txt
