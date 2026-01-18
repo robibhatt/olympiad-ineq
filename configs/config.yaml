@@ -1,5 +1,5 @@
 output:
-  path: data/raw/generated.jsonl
+  path: generated.jsonl
   resume: true
 
 batching:

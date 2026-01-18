@@ -77,6 +77,7 @@ class VLLMClient(LLMClient):
     def _ensure_initialized(self):
         """Lazily initialize vLLM on first use."""
         if self._llm is None:
+            print(f"Loading model: {self.model}...")
             from vllm import LLM, SamplingParams
 
             self._llm = LLM(model=self.model, **self.engine_kwargs)
@@ -85,22 +86,15 @@ class VLLMClient(LLMClient):
                 max_tokens=self.max_tokens,
                 top_p=self.top_p,
             )
+            print(f"Model loaded: {self.model}")
 
     def generate(self, prompts: list[PromptItem]) -> list[str]:
         """Generate completions using vLLM."""
         self._ensure_initialized()
 
-        # Convert messages to text prompts for vLLM
-        text_prompts = []
-        for prompt in prompts:
-            # Simple concatenation of messages
-            text = ""
-            for msg in prompt.messages:
-                role = msg.get("role", "user")
-                content = msg.get("content", "")
-                text += f"<|{role}|>\n{content}\n"
-            text += "<|assistant|>\n"
-            text_prompts.append(text)
+        # Extract conversations (already in correct format)
+        conversations = [prompt.messages for prompt in prompts]
 
-        outputs = self._llm.generate(text_prompts, self._sampling_params)
+        # Use chat() which applies the model's chat template
+        outputs = self._llm.chat(conversations, self._sampling_params)
         return [output.outputs[0].text for output in outputs]

@@ -1,6 +1,9 @@
 """Data generation entry point."""
 
+from pathlib import Path
+
 import hydra
+from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, OmegaConf
 
 from src.data_gen import Orchestrator, TemplatedPromptSource, VLLMClient
@@ -10,6 +13,19 @@ from src.data_gen import Orchestrator, TemplatedPromptSource, VLLMClient
 def main(cfg: DictConfig) -> None:
     """Run data generation pipeline."""
     print(OmegaConf.to_yaml(cfg))
+
+    # Resolve output path relative to Hydra's output directory
+    hydra_cfg = HydraConfig.get()
+    output_dir = Path(hydra_cfg.runtime.output_dir)
+    output_path = output_dir / cfg.output.path
+
+    # Print pipeline start info
+    print("=" * 60)
+    print("Starting data generation pipeline")
+    print("=" * 60)
+    print(f"Model: {cfg.vllm.model}")
+    print(f"Prompts: {cfg.prompt_plan.n}")
+    print(f"Output: {output_path}")
 
     # Create prompt source from prompt_plan config
     prompt_source = TemplatedPromptSource(
@@ -36,7 +52,7 @@ def main(cfg: DictConfig) -> None:
     orchestrator = Orchestrator(
         client=client,
         batch_size=cfg.batching.batch_size,
-        output_path=cfg.output.path,
+        output_path=output_path,
         resume=cfg.output.resume,
         generator_info={
             "model": cfg.vllm.model,
@@ -48,7 +64,7 @@ def main(cfg: DictConfig) -> None:
 
     # Run pipeline
     results = list(orchestrator.run(prompt_source))
-    print(f"Generated {len(results)} results to {cfg.output.path}")
+    print(f"Generated {len(results)} results to {output_path}")
 
 
 if __name__ == "__main__":

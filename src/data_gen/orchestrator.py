@@ -84,16 +84,35 @@ class Orchestrator:
         Yields:
             Result dictionaries after writing to file.
         """
+        # Convert to list for counting and filtering
+        items_list = list(items)
+        total_items = len(items_list)
+        print(f"Total prompts: {total_items}")
+
         # Load existing IDs if resuming
         existing_ids = set()
         if self.resume and self.output_path and self.output_path.exists():
             existing_ids = read_existing_ids(self.output_path)
+            print(f"Resume: found {len(existing_ids)} existing records")
 
         # Filter out already-processed items
-        filtered_items = (item for item in items if item.id not in existing_ids)
+        filtered = [item for item in items_list if item.id not in existing_ids]
+        skipped = total_items - len(filtered)
+        if skipped > 0:
+            print(f"Skipping {skipped} already-processed items")
+
+        # Calculate batch info
+        total_batches = (len(filtered) + self.batch_size - 1) // self.batch_size if filtered else 0
+        processed = 0
 
         # Process and write
-        for record in self.process_items(filtered_items):
+        for record in self.process_items(iter(filtered)):
             if self.output_path:
                 append_jsonl(self.output_path, record)
+            processed += 1
+            if processed % self.batch_size == 0 or processed == len(filtered):
+                batch_num = (processed + self.batch_size - 1) // self.batch_size
+                print(f"Batch {batch_num}/{total_batches} ({processed}/{len(filtered)} items)")
             yield record
+
+        print(f"Complete: {processed} items written to {self.output_path}")

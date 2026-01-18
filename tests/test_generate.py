@@ -44,7 +44,7 @@ class TestGenerateConfig:
         with initialize_config_dir(version_base=None, config_dir=config_dir):
             cfg = compose(config_name="config")
 
-            assert cfg.output.path == "data/raw/generated.jsonl"
+            assert cfg.output.path == "generated.jsonl"
             assert cfg.output.resume is True
 
     def test_config_has_format_system(self, config_dir):

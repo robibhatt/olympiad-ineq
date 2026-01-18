@@ -829,10 +829,10 @@ class TestVLLMClientConfig:
         mock_llm_instance = MagicMock()
         mock_llm_class.return_value = mock_llm_instance
 
-        # Mock the generate output
+        # Mock the chat output
         mock_output = MagicMock()
         mock_output.outputs = [MagicMock(text="response")]
-        mock_llm_instance.generate.return_value = [mock_output]
+        mock_llm_instance.chat.return_value = [mock_output]
 
         with patch.dict(
             "sys.modules",

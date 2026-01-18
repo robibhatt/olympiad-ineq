@@ -27,7 +27,7 @@ class TestNewConfigStructure:
         with initialize_config_dir(version_base=None, config_dir=config_dir):
             cfg = compose(config_name="config")
 
-            assert cfg.output.path == "data/raw/generated.jsonl"
+            assert cfg.output.path == "generated.jsonl"
             assert cfg.output.resume is True
 
     def test_batching_section(self, config_dir):
