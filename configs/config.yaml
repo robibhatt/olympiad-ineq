@@ -8,9 +8,10 @@ batching:
 vllm:
   gpu_type: a100  # v100, a100, etc. - used for config validation
   model: Qwen/Qwen2.5-Math-72B-Instruct
-  tensor_parallel_size: 4
+  tensor_parallel_size: 8
   dtype: bfloat16
   max_model_len: 4096
+  gpu_memory_utilization: 0.9
   sampling:
     temperature: 0.75
     top_p: 0.95

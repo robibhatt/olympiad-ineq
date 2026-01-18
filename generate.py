@@ -50,6 +50,7 @@ def main(cfg: DictConfig) -> None:
         tensor_parallel_size=cfg.vllm.tensor_parallel_size,
         dtype=cfg.vllm.dtype,
         max_model_len=cfg.vllm.max_model_len,
+        gpu_memory_utilization=cfg.vllm.gpu_memory_utilization,
     )
 
     # Create orchestrator with nested config
