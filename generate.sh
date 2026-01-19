@@ -7,6 +7,7 @@ REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 TIMESTAMP=$(date +%Y-%m-%d/%H-%M-%S)
 OUTPUT_DIR="${REPO_ROOT}/outputs/${TIMESTAMP}"
 mkdir -p "$OUTPUT_DIR"
+cp "${REPO_ROOT}/configs/config.yaml" "${OUTPUT_DIR}/config.yaml"
 
 echo "Output directory: $OUTPUT_DIR"
 

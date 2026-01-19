@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=generate_ineq_problems
 #SBATCH --partition=a100-galvani
-#SBATCH --gres=gpu:a100:8
+#SBATCH --gres=gpu:a100:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=80G
 #SBATCH --time=40:00:00
@@ -73,6 +73,6 @@ export TORCHINDUCTOR_USE_REMOTE_CACHE=0
 ###############################################################################
 # --- Run data generation ---
 ###############################################################################
-python generate.py "hydra.run.dir=${OUTPUT_DIR}"
+python generate.py --config-dir "${OUTPUT_DIR}" --config-name config "hydra.run.dir=${OUTPUT_DIR}"
 
 echo "Data generation complete."
